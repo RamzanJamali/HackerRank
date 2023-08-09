@@ -3,7 +3,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
-import re
+import threading
 from threading import Thread, Lock
 import time
 from urllib.parse import urlsplit
@@ -16,6 +16,7 @@ options = webdriver.ChromeOptions()
 options.add_experimental_option("excludeSwitches",["ignore-certificate-errors"])
 options.add_argument('--disable-gpu')
 options.add_argument('--headless')
+options.add_argument('--log-level=3')
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
 options.add_argument("user-agent=Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36")
@@ -69,6 +70,7 @@ lock = Lock()
 
 def link_finder(url):
     driver = webdriver.Chrome(service=service, options=options)
+    driver.set_page_load_timeout(10)
     try:
         driver.get(url)
 
@@ -84,7 +86,7 @@ def link_finder(url):
     except:
         pass
         
-    driver.quit()
+    driver.close()
 
 
 
@@ -111,26 +113,28 @@ link_finder(links_to_scrape[url])
 # Start test
 remaining_links = len(links_to_scrape)
 i = 0
+max_threads = 10
 while remaining_links > 0:
-    try:
-        with lock:
-            url = next(iter(links_to_scrape))
-            scraped_links.append(url)
-            del links_to_scrape[url]
-    
-        if url == None: 
-            break
+    if threading.active_count() <= max_threads:
+        try:
+            with lock:
+                url = next(iter(links_to_scrape))
+                scraped_links.append(url)
+                del links_to_scrape[url]
+        
+            if url == None: 
+                break
 
-        t = Thread(name='Test {}'.format(i), target=link_finder, args=(url,))
-        with lock:    
-            links_manager(links_found, scraped_links, links_to_scrape, url)
-        t.start()
-        print(t.name + ' started!')
-        thread_list.append(t)
-        i += 1
+            t = Thread(name='Test {}'.format(i), target=link_finder, args=(url,))
+            with lock:    
+                links_manager(links_found, scraped_links, links_to_scrape, url)
+            t.start()
+            print(t.name + ' started!')
+            thread_list.append(t)
+            i += 1
 
-    except:
-        pass
+        except:
+            pass
 
     remaining_links = len(links_to_scrape)
     
@@ -146,3 +150,10 @@ print('Test completed!')
 print(len(all_links))
 print(len(links_to_scrape))
 print(len(scraped_links))
+
+# Save useful links in text file in current directory
+with open('links.txt', 'w') as f:
+    f.write('\n'.join(all_links))
+        
+
+print("Done")
