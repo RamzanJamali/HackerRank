@@ -70,7 +70,7 @@ lock = Lock()
 
 def link_finder(url):
     driver = webdriver.Chrome(service=service, options=options)
-    driver.set_page_load_timeout(10)
+    driver.set_page_load_timeout(25)
     try:
         driver.get(url)
 
@@ -137,6 +137,7 @@ while remaining_links > 0:
             pass
 
     remaining_links = len(links_to_scrape)
+    print(remaining_links)
     
 # Wait for all threads to complete
 for thread in thread_list:
@@ -151,6 +152,7 @@ print(len(all_links))
 print(len(links_to_scrape))
 print(len(scraped_links))
 
+all_links = {k: v for k, v in all_links.items() if k is not None}
 # Save useful links in text file in current directory
 with open('links.txt', 'w') as f:
     f.write('\n'.join(all_links))
